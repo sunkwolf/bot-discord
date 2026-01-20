@@ -1,0 +1,15 @@
+# Override auto-detected providers to prevent nodejs_24/npm-9_x issue
+providers = []
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+aptPkgs = ["ffmpeg", "libtool", "autoconf", "automake", "python3", "g++", "make"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm ci --production"]
+
+[start]
+cmd = "npm start"
