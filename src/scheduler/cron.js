@@ -19,6 +19,39 @@ class EventScheduler {
     }
 
     /**
+     * Check if currently in weekly maintenance window
+     * Maintenance: Tuesday 13:30 - 19:30 (Mexico City time)
+     * @returns {boolean} True if in maintenance window
+     * @private
+     */
+    _isMaintenanceWindow() {
+        const now = new Date();
+        // Convert to Mexico City timezone
+        const mexicoTime = new Date(now.toLocaleString('en-US', { timeZone: config.timezone }));
+        
+        const dayOfWeek = mexicoTime.getDay(); // 0=Sunday, 1=Monday, 2=Tuesday
+        const hours = mexicoTime.getHours();
+        const minutes = mexicoTime.getMinutes();
+        const currentTimeInMinutes = hours * 60 + minutes;
+        
+        // Tuesday = 2, 13:30 = 810 minutes, 19:30 = 1170 minutes
+        const isTuesday = dayOfWeek === 2;
+        const startTime = 13 * 60 + 30; // 13:30 = 810 minutes
+        const endTime = 19 * 60 + 30;   // 19:30 = 1170 minutes
+        
+        const inWindow = isTuesday && currentTimeInMinutes >= startTime && currentTimeInMinutes < endTime;
+        
+        if (inWindow) {
+            logger.debug('Currently in maintenance window', {
+                day: dayOfWeek,
+                time: `${hours}:${minutes}`,
+            });
+        }
+        
+        return inWindow;
+    }
+
+    /**
      * Initialize the scheduler with all enabled events
      */
     async initialize() {
@@ -153,6 +186,15 @@ class EventScheduler {
      * @private
      */
     async _executeEventForChannel(event, channelId) {
+        // Skip events during maintenance window (Tuesday 13:30-19:30)
+        if (this._isMaintenanceWindow()) {
+            logger.info('Skipping event - maintenance window active', {
+                name: event.name,
+                channelId,
+            });
+            return;
+        }
+
         // Check if users are required and channel is empty
         const requireUsers = event.requireUsers !== false; // Default to true
         if (requireUsers) {
